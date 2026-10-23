@@ -52,6 +52,7 @@ export function useRoom(code: string, name: string): RoomConnection {
       };
 
       ws.onmessage = (e) => {
+        if (wsRef.current !== ws) return;
         const msg = JSON.parse(e.data) as ServerMsg;
         if (msg.t === 'state') {
           clockOffset.current = msg.view.serverNow - Date.now();
@@ -67,7 +68,8 @@ export function useRoom(code: string, name: string): RoomConnection {
       };
 
       ws.onclose = (e) => {
-        if (closed) return;
+        // A socket we've already replaced (e.g. on returning to the tab) must not reconnect again.
+        if (closed || wsRef.current !== ws) return;
         if (e.code === 4009) return setNameTaken(lastError.current ?? 'That name is taken.');
         if (e.code === 4000) return setFatal(lastError.current ?? 'Could not join this room.');
         if (FATAL_CODES[e.code]) return setFatal(FATAL_CODES[e.code]);

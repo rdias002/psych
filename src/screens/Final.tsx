@@ -1,3 +1,4 @@
+import { leaders } from '../../shared/engine';
 import type { PublicGame } from '../../shared/protocol';
 import { Avatar } from '../components/Avatar';
 import { Logo } from '../components/Logo';
@@ -37,8 +38,9 @@ function awards(g: PublicGame): Award[] {
 export function Final({ view, send, leave, nameOf, colorOf }: ScreenProps) {
   const g = view.game!;
   const isHost = view.hostId === view.you;
-  const top = Math.max(...g.players.map((id) => g.scores[id] ?? 0));
-  const winners = g.players.filter((id) => (g.scores[id] ?? 0) === top);
+  const winners = leaders(g);
+  const top = g.scores[winners[0]] ?? 0;
+  const list = awards(g);
   const names = (ids: string[]) => ids.map(nameOf).join(' & ');
 
   return (
@@ -64,9 +66,9 @@ export function Final({ view, send, leave, nameOf, colorOf }: ScreenProps) {
         <p className="text-indigo-300">{top} points</p>
       </section>
 
-      {awards(g).length > 0 && (
+      {list.length > 0 && (
         <section className="grid gap-2">
-          {awards(g).map((a, i) => (
+          {list.map((a, i) => (
             <div key={a.title} className="rise flex items-center gap-3 rounded-2xl bg-night-2 p-3" style={{ animationDelay: `${300 + i * 200}ms` }}>
               <span className="text-3xl">{a.emoji}</span>
               <div className="min-w-0">

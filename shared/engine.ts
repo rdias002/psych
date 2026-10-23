@@ -51,6 +51,8 @@ export interface GameState {
   subject: string | null;
   /** Offset into `players` for choosing subjects, so everyone gets a turn. */
   subjectOffset: number;
+  /** Truth Comes Out: who has been the subject since everyone last had a turn. */
+  subjects: string[];
   answers: Record<string, string>;
   /** Built when writing ends, already shuffled. */
   choices: Choice[];
@@ -66,13 +68,15 @@ const fail = (error: string): Result => ({ ok: false, error });
 
 /** Lowercase, no accents, punctuation or leading article: what "the same answer" means. */
 export function normalize(text: string): string {
-  return text
+  const n = text
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/[^\p{L}\p{N}\p{M}]+/gu, ' ')
     .trim()
     .replace(/^(a|an|the) /, '');
+  // Nothing left (all emoji or punctuation): compare the text itself rather than merging it with every other such answer.
+  return n || text.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 export const cleanAnswer = (text: unknown) =>
@@ -95,6 +99,7 @@ export function newGame(deckId: string, mode: DeckMode, players: string[], quest
     phase: 'write',
     subject: null,
     subjectOffset: Math.floor(rng() * players.length),
+    subjects: [],
     answers: {},
     choices: [],
     picks: {},
@@ -114,7 +119,21 @@ function startRound(g: GameState) {
   g.answers = {};
   g.choices = [];
   g.picks = {};
-  g.subject = g.mode === 'truth' && g.players.length ? g.players[(g.subjectOffset + g.round) % g.players.length] : null;
+  g.subject = nextSubject(g);
+}
+
+/** The next player, from the offset on, who hasn't had a turn as the subject; a new cycle once everyone has. */
+function nextSubject(g: GameState): string | null {
+  if (g.mode !== 'truth' || !g.players.length) return null;
+  const order = g.players.map((_, i) => g.players[(g.subjectOffset + i) % g.players.length]);
+  g.subjects ??= [];
+  let fresh = order.filter((id) => !g.subjects.includes(id));
+  if (!fresh.length) {
+    g.subjects = [];
+    fresh = order;
+  }
+  g.subjects.push(fresh[0]);
+  return fresh[0];
 }
 
 /** Someone joined mid-game: they play from the current phase on. */
@@ -234,7 +253,7 @@ function score(g: GameState) {
 }
 
 /** Players with the top score (several on a tie). */
-export function leaders(g: GameState): string[] {
+export function leaders(g: Pick<GameState, 'players' | 'scores'>): string[] {
   const best = Math.max(...g.players.map((id) => g.scores[id] ?? 0));
   return g.players.filter((id) => (g.scores[id] ?? 0) === best);
 }

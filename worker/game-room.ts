@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { ClientMsg, ServerMsg } from '../shared/protocol';
 import type { Rng } from '../shared/rng';
-import { type RoomState, createRoomState, handleMessage, migrate, settle, tick, viewFor } from './room-logic';
+import { type RoomState, createRoomState, handleMessage, migrate, reassignHost, settle, tick, viewFor } from './room-logic';
 
 const IDLE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -69,6 +69,7 @@ export class GameRoom extends DurableObject<Env> {
     } catch {
       return send(ws, { t: 'error', msg: 'Bad message' });
     }
+    if (!msg || typeof msg !== 'object') return send(ws, { t: 'error', msg: 'Bad message' });
 
     const att = ws.deserializeAttachment() as Attachment;
     const result = handleMessage(room, att.playerId, msg, cryptoRng, this.connectedIds());
@@ -87,6 +88,7 @@ export class GameRoom extends DurableObject<Env> {
         s.close(4001, 'Removed by host');
       }
     }
+    reassignHost(room, this.connectedIds());
     await this.save();
     this.broadcast();
   }
@@ -95,8 +97,10 @@ export class GameRoom extends DurableObject<Env> {
     ws.serializeAttachment({ playerId: null } satisfies Attachment);
     const room = await this.load();
     if (!room) return;
-    // The last straggler in a phase may have just left.
-    if (settle(room, this.connectedIds(), cryptoRng)) await this.save(false);
+    const connected = this.connectedIds();
+    // The host may have just left, or the last straggler in a phase.
+    const hostChanged = reassignHost(room, connected);
+    if (settle(room, connected, cryptoRng) || hostChanged) await this.save(false);
     this.broadcast(ws);
     await this.scheduleAlarm();
   }

@@ -73,11 +73,12 @@ function Progress({ view, done, nameOf, colorOf }: ScreenProps & { done: string[
 
 /** The host can stop waiting for stragglers. If the host has dropped out, anyone can. */
 function NextButton({ view, send, children }: ScreenProps & { children: ReactNode }) {
+  const g = view.game!;
   const host = view.players.find((p) => p.id === view.hostId);
   const canAdvance = view.hostId === view.you || !host?.connected;
   if (!canAdvance) return null;
   return (
-    <button onClick={() => send({ t: 'next' })} className="btn-secondary">
+    <button onClick={() => send({ t: 'next', phase: g.phase, round: g.round })} className="btn-secondary">
       {children}
     </button>
   );
@@ -197,7 +198,7 @@ function PickPhase(props: ScreenProps) {
 /** Truth last, so it lands as the punchline; otherwise the most-picked first. */
 function revealOrder(g: PublicGame): ChoiceView[] {
   const votes = (c: ChoiceView) => c.pickers?.length ?? 0;
-  return [...g.choices].sort((a, b) => Number(!!a.truth) - Number(!!b.truth) || votes(a) - votes(b));
+  return [...g.choices].sort((a, b) => Number(!!a.truth) - Number(!!b.truth) || votes(b) - votes(a));
 }
 
 function RevealPhase(props: ScreenProps) {

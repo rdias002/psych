@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ClientMsg } from '../shared/protocol';
 import { seededRng } from '../shared/rng';
-import { type RoomState, MAX_PLAYERS, createRoomState, handleMessage, settle, tick, viewFor } from './room-logic';
+import { type RoomState, MAX_PLAYERS, createRoomState, handleMessage, reassignHost, settle, tick, viewFor } from './room-logic';
 
 const rng = seededRng(7);
 const hello = (id: string, name = id): ClientMsg => ({ t: 'hello', playerId: id, token: `tok-${id}`, name });
@@ -22,6 +22,9 @@ function started(ids = ['a', 'b', 'c'], settings: Partial<RoomState['settings']>
   expect(as(room, 'a', { t: 'start' })).toEqual({ ok: true });
   return room;
 }
+
+/** A 'next' for whatever phase the game is in now. */
+const next = (room: RoomState): ClientMsg => ({ t: 'next', phase: room.game!.phase, round: room.game!.round });
 
 /** A fake that can't collide with any real answer. */
 const fake = (id: string) => `fake answer from ${id} zq`;
@@ -122,14 +125,30 @@ describe('a round', () => {
   it('has no timer when the pace is off; the host moves things on', () => {
     const room = started(undefined, { pace: 'off' });
     expect(room.deadline).toBeNull();
-    expect(as(room, 'b', { t: 'next' }).ok).toBe(false);
-    expect(as(room, 'a', { t: 'next' }).ok).toBe(true);
+    expect(as(room, 'b', next(room)).ok).toBe(false);
+    expect(as(room, 'a', next(room)).ok).toBe(true);
     expect(room.game!.phase).toBe('pick');
   });
 
   it('lets anyone move on if the host has disconnected', () => {
     const room = started(undefined, { pace: 'off' });
-    expect(handleMessage(room, 'b', { t: 'next' }, rng, new Set(['b', 'c'])).ok).toBe(true);
+    expect(handleMessage(room, 'b', next(room), rng, new Set(['b', 'c'])).ok).toBe(true);
+  });
+
+  it('ignores a repeated next for a phase the game has already left', () => {
+    const room = started(undefined, { pace: 'off' });
+    const stale = next(room);
+    expect(as(room, 'a', stale).ok).toBe(true);
+    expect(as(room, 'a', stale).ok).toBe(true);
+    expect(room.game!.phase).toBe('pick');
+  });
+
+  it('hands the host role on when the host disconnects', () => {
+    const room = lobby(['a', 'b', 'c']);
+    expect(reassignHost(room, new Set(['a', 'b', 'c']))).toBe(false);
+    expect(reassignHost(room, new Set(['b', 'c']))).toBe(true);
+    expect(room.hostId).toBe('b');
+    expect(handleMessage(room, 'b', { t: 'start' }, rng, new Set(['b', 'c'])).ok).toBe(true);
   });
 
   it('lets late arrivals join mid-game', () => {
@@ -142,14 +161,14 @@ describe('a round', () => {
   it('ends after the last round, then plays again without repeating questions', () => {
     const room = started();
     const firstIds = room.game!.questions.map((q) => q.id);
-    for (let i = 0; i < 5 * 3; i++) as(room, 'a', { t: 'next' });
+    for (let i = 0; i < 5 * 3; i++) as(room, 'a', next(room));
     expect(room.status).toBe('ended');
     expect(room.game!.phase).toBe('final');
     expect(room.deadline).toBeNull();
     expect(as(room, 'a', { t: 'playAgain' })).toEqual({ ok: true });
     expect(room.status).toBe('playing');
     expect(room.game!.questions.some((q) => firstIds.includes(q.id))).toBe(false);
-    for (let i = 0; i < 5 * 3; i++) as(room, 'a', { t: 'next' });
+    for (let i = 0; i < 5 * 3; i++) as(room, 'a', next(room));
     expect(as(room, 'a', { t: 'toLobby' })).toEqual({ ok: true });
     expect(room).toMatchObject({ status: 'lobby', game: null });
   });
@@ -188,7 +207,7 @@ describe('what each player sees', () => {
     for (const id of ['a', 'b', 'c']) as(room, id, { t: 'answer', text: fake(id) });
     const bChoice = room.game!.choices.find((c) => c.text === fake('b'))!;
     as(room, 'a', { t: 'pick', choiceId: bChoice.id });
-    as(room, 'a', { t: 'next' });
+    as(room, 'a', next(room));
     const view = viewFor(room, 'c', new Set(['a', 'b', 'c']));
     const shown = view.game!.choices.find((c) => c.id === bChoice.id)!;
     expect(shown).toMatchObject({ authors: ['b'], pickers: ['a'] });

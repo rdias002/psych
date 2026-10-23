@@ -32,8 +32,8 @@ export type ClientMsg =
   | { t: 'start' }
   | { t: 'answer'; text: string }
   | { t: 'pick'; choiceId: string }
-  /** Host: stop waiting and move to the next phase. */
-  | { t: 'next' }
+  /** Host: stop waiting and move on from this phase. Ignored if the game has already left it. */
+  | { t: 'next'; phase: Phase; round: number }
   | { t: 'playAgain' }
   | { t: 'toLobby' };
 

@@ -115,6 +115,15 @@ export function settle(room: RoomState, connected: Set<string>, rng: Rng, now = 
   return changed;
 }
 
+/** Hand the host role to the first connected player if the host has gone. Returns true if it changed. */
+export function reassignHost(room: RoomState, connected: Set<string>): boolean {
+  if (room.hostId && connected.has(room.hostId)) return false;
+  const next = room.players.find((p) => connected.has(p.id));
+  if (!next) return false;
+  room.hostId = next.id;
+  return true;
+}
+
 /** Called when the phase clock may have run out. Returns true if the game moved on. */
 export function tick(room: RoomState, connected: Set<string>, rng: Rng, now = Date.now()): boolean {
   if (room.status !== 'playing' || !room.game || room.deadline === null || now < room.deadline) return false;
@@ -191,6 +200,8 @@ export function handleMessage(
       const hostAway = !room.hostId || !connected.has(room.hostId);
       if (!isHost && !hostAway) return fail('Only the host can move on');
       if (room.status !== 'playing' || !room.game) return fail('No game in progress');
+      // A double tap, or two players stopping the wait at once: only the first one counts.
+      if (msg.phase !== room.game.phase || msg.round !== room.game.round) return { ok: true };
       step(room, rng, now);
       settle(room, connected, rng, now);
       return { ok: true };

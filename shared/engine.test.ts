@@ -37,6 +37,13 @@ describe('normalize', () => {
     expect(normalize('Café au lait')).toBe('cafe au lait');
     expect(normalize('An  aglet')).toBe('aglet');
   });
+
+  it('keeps answers in other scripts, or only emoji, apart', () => {
+    expect(normalize('日本!')).toBe('日本');
+    expect(normalize('Привет')).toBe('привет');
+    expect(normalize('🍕')).not.toBe(normalize('🌮'));
+    expect(normalize('🍕')).not.toBe(normalize('日本'));
+  });
 });
 
 describe('writing answers', () => {
@@ -174,6 +181,24 @@ describe('The Truth Comes Out', () => {
       advance(g, rng);
     }
     expect(subjects.sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  it('still gives everyone a turn when someone leaves mid-game', () => {
+    const g = newGame('truth', 'truth', ['a', 'b', 'c', 'd'], [...TRUTH_QS, ...TRUTH_QS], rng);
+    const round = () => {
+      const r = g.round;
+      while (g.round === r) advance(g, rng);
+    };
+    const seen = [g.subject!];
+    round();
+    seen.push(g.subject!);
+    // A player who has already had their turn leaves; the two still waiting must come next.
+    removePlayer(g, seen[1]);
+    round();
+    seen.push(g.subject!);
+    round();
+    seen.push(g.subject!);
+    expect(seen.slice(2).sort()).toEqual(g.players.filter((id) => !seen.slice(0, 2).includes(id)).sort());
   });
 
   it('has no real answer and scores a point per vote', () => {
