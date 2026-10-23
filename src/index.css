@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --color-night: #1e1b4b;
+  --color-night-2: #2e2a6b;
+  --color-night-3: #3d3887;
+  --color-accent: #fde047;
+  --color-psych: #f472b6;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: radial-gradient(120% 80% at 50% 0%, #312e81 0%, var(--color-night) 60%) fixed, var(--color-night);
+  color: #f5f3ff;
+  font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+@layer components {
+  .btn-primary {
+    @apply rounded-xl bg-accent px-4 py-3 text-lg font-bold text-indigo-950 shadow-md transition active:scale-[0.98] active:bg-yellow-200 disabled:opacity-40 disabled:active:scale-100;
+  }
+  .btn-secondary {
+    @apply rounded-xl bg-night-3 px-4 py-3 font-semibold transition active:scale-[0.98] active:bg-indigo-700 disabled:opacity-40;
+  }
+  .field {
+    @apply rounded-xl bg-night-2 px-4 py-3 text-lg outline-none ring-1 ring-indigo-700 focus:ring-2 focus:ring-accent;
+  }
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.pop-in { animation: pop-in 0.35s ease-out both; }
+
+@keyframes stamp {
+  0% { transform: rotate(-12deg) scale(2.4); opacity: 0; }
+  60% { transform: rotate(-12deg) scale(0.92); opacity: 1; }
+  100% { transform: rotate(-12deg) scale(1); opacity: 1; }
+}
+.stamp { animation: stamp 0.4s ease-out both; }
+
+@keyframes rise {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.rise { animation: rise 0.35s ease-out both; }
