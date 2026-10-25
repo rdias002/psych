@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ClientMsg } from '../shared/protocol';
+import { capitalize } from '../shared/engine';
 import { seededRng } from '../shared/rng';
 import { type RoomState, MAX_PLAYERS, createRoomState, handleMessage, reassignHost, settle, tick, viewFor } from './room-logic';
 
@@ -27,7 +28,7 @@ function started(ids = ['a', 'b', 'c'], settings: Partial<RoomState['settings']>
 const next = (room: RoomState): ClientMsg => ({ t: 'next', phase: room.game!.phase, round: room.game!.round });
 
 /** A fake that can't collide with any real answer. */
-const fake = (id: string) => `fake answer from ${id} zq`;
+const fake = (id: string) => `Fake answer from ${id} zq`;
 
 describe('lobby', () => {
   it('makes the first player host', () => {
@@ -189,7 +190,7 @@ describe('what each player sees', () => {
     expect(view.game!.choices).toHaveLength(3);
     expect(view.game!.myAnswer).toBe(fake('a'));
     // The truth is there to pick, but nothing marks it out, and no future questions leak.
-    expect(view.game!.choices.map((c) => c.text)).toContain(answer);
+    expect(view.game!.choices.map((c) => c.text)).toContain(capitalize(answer));
     expect(json).not.toContain(room.game!.questions[1].prompt);
   });
 

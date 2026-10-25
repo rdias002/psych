@@ -6,6 +6,7 @@ import {
   TRUTH_POINTS,
   addPlayer,
   advance,
+  capitalize,
   choicesFor,
   newGame,
   normalize,
@@ -30,6 +31,16 @@ function bluff(players = ['a', 'b', 'c']): GameState {
 
 const choiceByText = (g: GameState, text: string) => g.choices.find((c) => c.text === text)!;
 const truth = (g: GameState) => g.choices.find((c) => c.truth)!;
+
+describe('capitalize', () => {
+  it('uppercases the first letter only, past any leading punctuation', () => {
+    expect(capitalize('juicy Fruit gum')).toBe('Juicy Fruit gum');
+    expect(capitalize('BackRub')).toBe('BackRub');
+    expect(capitalize('20 years')).toBe('20 years');
+    expect(capitalize('“tittle”')).toBe('“Tittle”');
+    expect(capitalize('日本')).toBe('日本');
+  });
+});
 
 describe('normalize', () => {
   it('ignores case, punctuation, accents and a leading article', () => {
@@ -93,25 +104,32 @@ describe('picking', () => {
     const g = toPick();
     expect(g.phase).toBe('pick');
     expect(g.choices).toHaveLength(3);
-    expect(choiceByText(g, 'lion').authors).toEqual(['a', 'b']);
-    expect(truth(g).text).toBe('unicorn');
+    expect(choiceByText(g, 'Lion').authors).toEqual(['a', 'b']);
+    expect(truth(g).text).toBe('Unicorn');
     expect(g.choices.map((c) => c.id)).toEqual(['c0', 'c1', 'c2']);
+  });
+
+  it("capitalizes every choice so the lowercase truth doesn't stand out", () => {
+    const g = toPick();
+    expect(g.choices.map((c) => c.text).sort()).toEqual(['Lion', 'Stag', 'Unicorn']);
+    // Your own answer is still shown as you typed it.
+    expect(g.answers.c).toBe('stag');
   });
 
   it('hides your own answer and refuses picking it', () => {
     const g = toPick();
-    expect(choicesFor(g, 'a').map((c) => c.text).sort()).toEqual(['stag', 'unicorn']);
+    expect(choicesFor(g, 'a').map((c) => c.text).sort()).toEqual(['Stag', 'Unicorn']);
     expect(choicesFor(g, 'd')).toHaveLength(3);
-    expect(submitPick(g, 'b', choiceByText(g, 'lion').id)).toMatchObject({ ok: false });
+    expect(submitPick(g, 'b', choiceByText(g, 'Lion').id)).toMatchObject({ ok: false });
     expect(submitPick(g, 'b', 'nope')).toMatchObject({ ok: false });
   });
 
   it('scores the truth and every player psyched, crediting each co-author', () => {
     const g = toPick();
     submitPick(g, 'a', truth(g).id);
-    submitPick(g, 'b', choiceByText(g, 'stag').id);
-    submitPick(g, 'c', choiceByText(g, 'lion').id);
-    submitPick(g, 'd', choiceByText(g, 'lion').id);
+    submitPick(g, 'b', choiceByText(g, 'Stag').id);
+    submitPick(g, 'c', choiceByText(g, 'Lion').id);
+    submitPick(g, 'd', choiceByText(g, 'Lion').id);
     expect(phaseComplete(g, all(['a', 'b', 'c', 'd']))).toBe(true);
     advance(g, rng);
     expect(g.phase).toBe('reveal');
@@ -208,9 +226,9 @@ describe('The Truth Comes Out', () => {
     submitAnswer(g, 'c', 'sleeping');
     advance(g, rng);
     expect(g.choices.some((c) => c.truth)).toBe(false);
-    submitPick(g, 'a', choiceByText(g, 'sleeping').id);
-    submitPick(g, 'b', choiceByText(g, 'sleeping').id);
-    submitPick(g, 'c', choiceByText(g, 'juggling').id);
+    submitPick(g, 'a', choiceByText(g, 'Sleeping').id);
+    submitPick(g, 'b', choiceByText(g, 'Sleeping').id);
+    submitPick(g, 'c', choiceByText(g, 'Juggling').id);
     advance(g, rng);
     expect(g.gained).toEqual({ a: PICK_POINTS, b: 0, c: 2 * PICK_POINTS });
     expect(g.stats.c.fooled).toBe(2);

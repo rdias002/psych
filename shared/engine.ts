@@ -79,6 +79,10 @@ export function normalize(text: string): string {
   return n || text.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+/** Capitalize the first letter, so a lowercase deck answer looks like a typed one. */
+export const capitalize = (text: string) =>
+  text.replace(/^([^\p{L}\p{N}]*)(\p{L})/u, (_, lead: string, c: string) => lead + c.toUpperCase());
+
 export const cleanAnswer = (text: unknown) =>
   String(text ?? '')
     // eslint-disable-next-line no-control-regex
@@ -223,11 +227,11 @@ function buildChoices(g: GameState, rng: Rng): Choice[] {
     const key = normalize(text);
     const existing = byText.get(key);
     if (existing) existing.authors.push(id);
-    else byText.set(key, { text, authors: [id] });
+    else byText.set(key, { text: capitalize(text), authors: [id] });
   }
   const list: Omit<Choice, 'id'>[] = [...byText.values()];
   const q = currentQuestion(g);
-  if (g.mode === 'bluff' && q.answer) list.push({ text: q.answer, authors: [], truth: true });
+  if (g.mode === 'bluff' && q.answer) list.push({ text: capitalize(q.answer), authors: [], truth: true });
   return shuffle(list, rng).map((c, i) => ({ id: `c${i}`, ...c }));
 }
 
